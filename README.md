@@ -48,7 +48,7 @@ document, which is the honest grain size for a plan. See [docs/rfc-map.md](docs/
 
 ### Errata watch
 
-- RFC 7854 carries 3 verified errata and is updated by RFC 8671, RFC 9069, RFC 9515 and RFC 9736. Read all of them before M1: RFC 9515 and RFC 9736 were not examined during this survey and may change message handling.
+- RFC 7854 carries 3 verified errata and is updated by RFC 8671, RFC 9069, RFC 9515 and RFC 9736. Read all of them before M1. RFC 9515 only changes registration procedures for several BMP registries; RFC 9736 gives the Peer Up message its own namespace and moves codepoints from RFC 8671 and RFC 9069 into it (rfclib, 2026-11-07). RFC 9515 and RFC 9736 report no verified errata.
 - RFC 8671 and RFC 9069 report no errata as of 2026-10-29.
 
 ## Module layout
@@ -73,7 +73,8 @@ document, which is the honest grain size for a plan. See [docs/rfc-map.md](docs/
 ## Install
 
 ```bash
-git clone https://github.com/b1tninja/bmpkit.cd bmpkit
+git clone https://github.com/b1tninja/bmpkit.git
+cd bmpkit
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\\Scripts\\Activate.ps1
 pip install -e ".[dev]"

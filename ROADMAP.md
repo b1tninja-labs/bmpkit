@@ -11,20 +11,24 @@ behaviour regressed. Reading the code and agreeing with it is not enough. That i
 Legend: `[ok]` implemented and pinned by a named test -- `[part]` partial, with what is
 missing stated -- `[ ]` not implemented -- `[no]` deliberate non-goal.
 
+A Where cell marked `(to be written)` names the test that will pin the row once it exists; no
+such test has been written yet, and the row cannot leave `[ ]` until it has. The Milestone
+column places the row on the ladder in section 2, and `-` means it is not placed yet.
+
 Update the affected row in the same commit that changes the behaviour. A row and its test
 drift apart within one release, and the document becomes useless exactly when it is needed.
 
 ## 1. Obligations
 
-| Obligation | Spec | Status | Where |
-|---|---|---|---|
-| `header.decode_common()` | RFC 7854 | `[ ]` | `tests/test_obligations.py::decode_common` |
-| `messages.decode_route_monitoring()` | RFC 7854 | `[ ]` | `tests/test_obligations.py::decode_route_monitoring` |
-| `messages.decode_statistics()` | RFC 7854 | `[ ]` | `tests/test_obligations.py::decode_statistics` |
-| `rib.view_of()` | RFC 8671, RFC 9069 | `[ ]` | `tests/test_obligations.py::view_of` |
-| `server.serve()` | RFC 7854 | `[ ]` | `tests/test_obligations.py::serve` |
-| `mirror.extract_bgp_message()` | RFC 7854 | `[ ]` | `tests/test_obligations.py::extract_bgp_message` |
-| `replay.from_capture()` | design | `[ ]` | `tests/test_obligations.py::from_capture` |
+| Obligation | Spec | Status | Where | Milestone |
+|---|---|---|---|---|
+| `header.decode_common()` | RFC 7854 | `[ ]` | `tests/test_obligations.py::test_decode_common` (to be written) | M1 |
+| `messages.decode_route_monitoring()` | RFC 7854 | `[ ]` | `tests/test_obligations.py::test_decode_route_monitoring` (to be written) | M1 |
+| `messages.decode_statistics()` | RFC 7854 | `[ ]` | `tests/test_obligations.py::test_decode_statistics` (to be written) | M4 |
+| `rib.view_of()` | RFC 8671, RFC 9069 | `[ ]` | `tests/test_obligations.py::test_view_of` (to be written) | M3 |
+| `server.serve()` | RFC 7854 | `[ ]` | `tests/test_obligations.py::test_serve` (to be written) | M2 |
+| `mirror.extract_bgp_message()` | RFC 7854 | `[ ]` | `tests/test_obligations.py::test_extract_bgp_message` (to be written) | M4 |
+| `replay.from_capture()` | design | `[ ]` | `tests/test_obligations.py::test_from_capture` (to be written) | M5 |
 
 ## 2. Milestones
 
@@ -40,7 +44,7 @@ the code existing. Coverage in `pyproject.toml` ratchets in the same commit.
 
 ## 3. Errata watch
 
-- RFC 7854 carries 3 verified errata and is updated by RFC 8671, RFC 9069, RFC 9515 and RFC 9736. Read all of them before M1: RFC 9515 and RFC 9736 were not examined during this survey and may change message handling.
+- RFC 7854 carries 3 verified errata and is updated by RFC 8671, RFC 9069, RFC 9515 and RFC 9736. Read all of them before M1. RFC 9515 only changes registration procedures for several BMP registries; RFC 9736 gives the Peer Up message its own namespace and moves codepoints from RFC 8671 and RFC 9069 into it (rfclib, 2026-11-07). RFC 9515 and RFC 9736 report no verified errata.
 - RFC 8671 and RFC 9069 report no errata as of 2026-10-29.
 
 ## 4. Deliberate non-goals
@@ -53,7 +57,8 @@ the code existing. Coverage in `pyproject.toml` ratchets in the same commit.
 
 ## 5. Open questions
 
-- none recorded yet
+- messages.decode_statistics is placed on M4, the rung that names statistics, but M1 is the message codec: keep it on M4 or move it to M1
+- RFC 9736 moves Peer Up onto its own namespace and RFC 9515 changes registry procedures only: does M1 decode Peer Up information against the RFC 9736 registry, and does a row need to name it
 
 ## 6. Publication checklist
 
