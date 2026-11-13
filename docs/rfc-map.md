@@ -20,8 +20,18 @@ Re-verify with the RFC library rather than memory: `info('RFCnnnn')` for current
 
 ## Sections read in full
 
-RFC 7854 sections 3.3, 4.1, 4.2, 4.3, 4.4, 4.5 and 4.10; RFC 8671 section 4; RFC 9069 sections 4 and 5.2 (5.1 by search only); RFC 9736 in full; RFC 9515 abstract only; RFC 4271 section 4.1. Not yet read: RFC 7854 sections 4.6 to 4.9, 5 to 8 and 10.
+RFC 7854 sections 3.3, 4.1, 4.2, 4.3, 4.4, 4.5 and 4.10; RFC 8671 section 4; RFC 9069 sections 4 and 5.2 (5.1 by search only); RFC 9736 in full; RFC 9515 abstract only; RFC 4271 section 4.1. Read on 2026-11-13 in the second pass: RFC 7854 sections 4.6, 4.7, 4.9, 5 and 10.8 to 10.10, RFC 9069 sections 5.2 to 5.4 and 8.4. Not yet read: RFC 7854 sections 4.8 (statistics), 6 to 9.
 
 Test vectors: none of these RFCs has byte examples. Every vector in `tests/` is built by hand from the figures and field lists and says so. A capture from a live FRR or BIRD speaker is a ROADMAP row and the only interoperability evidence still owed.
 
 Further documents the project will need, not yet in the spine: RFC 6793 (the A flag), RFC 7911 (ADD-PATH in monitored UPDATEs), RFC 5492 and RFC 8810 (capabilities in OPENs), RFC 8654 and RFC 9072 (extended messages), RFC 4364 (route distinguishers in RD Instance Peers), RFC 7606 (UPDATE error handling).
+
+Findings of the second pass:
+
+- Erratum 4830 (held, technical): the Peer Down figure does not say that the per-peer header precedes the Reason. It does, as in every other message that has one; `decode_peer_down` takes the body after the per-peer header exactly as `decode_peer_up` does, and a test builds the whole message to show it.
+- Erratum 7194 (verified, technical): the Peer Down Reason is one octet, so the IANA ranges become 0 reserved, 1 to 127 Standards Action, 128 to 250 Specification Required, 251 to 254 experimental, 255 reserved. The IANA registry (`bmp-parameters`, updated 2026-05-22) already reads that way and also lists reason 6 (RFC 9069).
+- Erratum 7703 (verified): the L flag has significance only for Route Monitoring, so `decode_mirrored` does not consult it.
+- Erratum 7133 (held): RFC 7854 section 5 asks for one End-of-RIB marker per peer, but RFC 4724 defines the marker per address family. `RouteMonitoring.end_of_rib` reports the family.
+- RFC 7854 section 4.7 in the IANA registries: Route Mirroring TLV types 0 and 1 and Information codes 0 and 1 are the only assigned values.
+- RFC 9972 (statistics types 18 to 43) and RFC 8671 types 14 to 17 are in the IANA statistics registry and not in the spine; recorded in `ROADMAP.md`.
+- pathattr (RFC 4271, RFC 7606, RFC 7911, RFC 4760) is a sibling path dependency: `pyproject.toml` puts `../pathattr` on pytest's `pythonpath` and mypy's `mypy_path`, as `bgpfeed` does.

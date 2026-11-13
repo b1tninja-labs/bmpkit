@@ -69,7 +69,7 @@ include = ["/bmpkit/", "/tests/", "/docs/", "/README.md", "/ROADMAP.md", "/CHANG
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = [".", "../pathattr"]
 asyncio_mode = "auto"
 addopts = "-ra"
 
@@ -117,3 +117,4 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 no_implicit_optional = true
 ignore_missing_imports = true
+mypy_path = "../pathattr"

@@ -65,7 +65,8 @@ rather than merely incomplete.
 
 Standard library only. The `cryptography` package may be added for cryptographic primitives; everything
 else is written here. BGP PDUs inside BMP messages are kept as bytes and decoded by `pathattr` (sibling
-project, `D:\code\pathattr`); do not write a second BGP decoder here.
+project, `D:\code\pathattr`, on `pythonpath` and `mypy_path` in `pyproject.toml`); do not write a second BGP decoder
+here. `bmpkit.messages` imports it only when a function that decodes a PDU is called.
 
 ## Read before implementing
 
