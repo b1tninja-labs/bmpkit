@@ -265,3 +265,110 @@ def test_peer_up_second_open_missing_rejected():
     body = bytes(16) + struct.pack(">HH", 1, 2) + bgp_open()
     with pytest.raises(BmpError, match="received OPEN"):
         decode_peer_up(body, peer())
+
+
+# -- Statistics Reports (RFC 7854 section 4.8, RFC 8671 table 2, RFC 9972 sections 3 and 8) ----------------
+
+
+def stat(stat_type: int, data: bytes) -> bytes:
+    return struct.pack(">HH", stat_type, len(data)) + data
+
+
+def report(*stats: bytes, count: int | None = None) -> bytes:
+    return struct.pack(">I", len(stats) if count is None else count) + b"".join(stats)
+
+
+def per_family(afi: int, safi: int, value: int) -> bytes:
+    return struct.pack(">HBQ", afi, safi, value)
+
+
+def test_statistics_report_reads_counters_gauges_and_per_family_gauges():
+    from bmpkit.messages import decode_statistics
+
+    body = report(
+        stat(0, struct.pack(">I", 5)),
+        stat(7, struct.pack(">Q", 2**40)),
+        stat(9, per_family(1, 1, 700)),
+        stat(9, per_family(2, 1, 12)),
+        stat(14, struct.pack(">Q", 3)),
+        stat(18, struct.pack(">Q", 4)),
+        stat(22, per_family(1, 1, 8)),
+        stat(43, per_family(2, 1, 9)),
+    )
+    stats = decode_statistics(body)
+    assert [i.kind for i in stats.items] == [
+        "counter32",
+        "gauge64",
+        "afi-safi-gauge64",
+        "afi-safi-gauge64",
+        "gauge64",
+        "gauge64",
+        "afi-safi-gauge64",
+        "afi-safi-gauge64",
+    ]
+    assert stats.get(0) == 5
+    assert stats.get(7) == 2**40
+    assert stats.get(9, 1, 1) == 700
+    assert stats.get(9, 2, 1) == 12
+    assert stats.get(9, 1, 2) is None
+    assert stats.get(22, 1, 1) == 8
+    assert stats.get(43, 2, 1) == 9
+
+
+def test_statistics_unknown_types_are_kept_and_not_interpreted():
+    from bmpkit.messages import decode_statistics
+
+    stats = decode_statistics(
+        report(stat(24, b"\x01\x02"), stat(500, b""), stat(1, struct.pack(">I", 1)))
+    )
+    assert [(i.type, i.kind, i.value, i.raw) for i in stats.items] == [
+        (24, "unknown", None, b"\x01\x02"),
+        (500, "unknown", None, b""),
+        (1, "counter32", 1, struct.pack(">I", 1)),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("body", "match"),
+    [
+        (b"\x00\x00", "Stats Count"),
+        (report(), "at least one"),
+        (report(stat(0, b"\x00" * 8)), "needs 4"),
+        (report(stat(7, b"\x00" * 4)), "needs 8"),
+        (report(stat(19, b"\x00" * 8)), "needs 11"),
+        (report(stat(18, struct.pack(">Q", 1)), stat(18, struct.pack(">Q", 2))), "twice"),
+        (report(stat(19, per_family(1, 1, 1)), stat(19, per_family(1, 1, 2))), "twice"),
+        (report(stat(0, struct.pack(">I", 1)), count=2), "cut short"),
+        (report(stat(0, struct.pack(">I", 1)), count=1) + b"\x00", "follow"),
+        (struct.pack(">IHH", 1, 0, 40) + b"\x00", "past the end"),
+        (struct.pack(">I", 10**6), "limit"),
+    ],
+)
+def test_a_statistics_report_that_breaks_its_rules_is_refused(body, match):
+    from bmpkit.messages import decode_statistics
+
+    with pytest.raises(BmpError, match=match):
+        decode_statistics(body)
+
+
+def test_statistics_without_strict_keep_what_strict_refuses():
+    from bmpkit.messages import decode_statistics
+
+    odd = decode_statistics(report(stat(0, b"\x00" * 8)), strict=False)
+    assert (odd.items[0].kind, odd.items[0].value) == ("unknown", None)
+    assert decode_statistics(report(), strict=False).items == ()
+    twice = report(stat(18, struct.pack(">Q", 1)), stat(18, struct.pack(">Q", 2)))
+    assert len(decode_statistics(twice, strict=False).items) == 2
+    # repeats are only forbidden for RFC 9972's types: RFC 7854 says nothing of them
+    again = report(stat(7, struct.pack(">Q", 1)), stat(7, struct.pack(">Q", 2)))
+    assert decode_statistics(again).get(7) == 1
+
+
+def test_peer_down_tlvs_other_than_the_vrf_name_are_kept_raw():
+    """RFC 9069 section 5.3 defines only type 3 for reason 6; nothing else is interpreted."""
+    from bmpkit.messages import InfoTlv, decode_peer_down
+
+    body = bytes([6]) + struct.pack(">HH", 3, 1) + b"v" + struct.pack(">HH", 9, 2) + b"\xde\xad"
+    down = decode_peer_down(body)
+    assert down.vrf_names == ("v",)
+    assert down.tlvs == (InfoTlv(3, b"v"), InfoTlv(9, b"\xde\xad"))

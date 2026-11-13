@@ -37,9 +37,8 @@ from .header import BmpError, PerPeerHeader
 if TYPE_CHECKING:
     from typing import Any
 
-    Stats = Any  # placeholder: give it a real type in the milestone that needs it
-
 __all__ = [
+    "MAX_STATS",
     "MAX_TLVS",
     "InfoTlv",
     "Initiation",
@@ -48,6 +47,8 @@ __all__ = [
     "PeerUp",
     "RouteMirroring",
     "RouteMonitoring",
+    "Statistic",
+    "Statistics",
     "TermReason",
     "Termination",
     "add_path_families",
@@ -624,10 +625,107 @@ def add_path_families(up: PeerUp, peer: PerPeerHeader) -> frozenset[tuple[int, i
     return pa.addpath.receive_families(sent, received)
 
 
-def decode_statistics(raw: bytes) -> Stats:
-    """Pending behaviour defined by RFC 7854.
+_COUNTER32 = frozenset({0, 1, 2, 3, 4, 5, 6, 11, 12, 13})  # RFC 7854 section 4.8
+_GAUGE64 = frozenset({7, 8, 14, 15, 18, 20, 29, 31, 33, 39})  # RFC 7854, RFC 8671, RFC 9972
+_AFI_SAFI_GAUGE64 = frozenset(
+    {9, 10, 16, 17, 19, 21, 22, 23, 26, 27, 28, 30, 32, 34, 35, 36, 37, 38, 40, 41, 42, 43}
+)
+_RFC9972_TYPES = range(18, 44)
+MAX_STATS = 4096
 
-    Not implemented yet. See the ``messages.decode_statistics()`` row in ROADMAP.md; this
-    stub raises on purpose so nothing downstream mistakes it for working code.
+
+@dataclass(frozen=True)
+class Statistic:
+    """One Stat TLV (RFC 7854 section 4.8): its type, the value, and the octets it came from.
+
+    ``kind`` is ``"counter32"`` (a 32-bit counter), ``"gauge64"`` (a 64-bit gauge),
+    ``"afi-safi-gauge64"`` (2-octet AFI, 1-octet SAFI, 64-bit gauge; ``afi`` and ``safi`` set) or
+    ``"unknown"`` for a type this module does not define, or a defined one whose length is wrong
+    when read without ``strict``; then ``value`` is None and ``raw`` is all there is.
     """
-    raise NotImplementedError("decode_statistics() is not implemented: RFC 7854")
+
+    type: int
+    kind: str
+    value: int | None
+    raw: bytes
+    afi: int | None = None
+    safi: int | None = None
+
+
+@dataclass(frozen=True)
+class Statistics:
+    """A Statistics Report body: the counters in the order sent."""
+
+    items: tuple[Statistic, ...]
+
+    def get(self, stat_type: int, afi: int | None = None, safi: int | None = None) -> int | None:
+        """The value of the first statistic of that type (and family), or None."""
+        for item in self.items:
+            if item.type == stat_type and item.afi == afi and item.safi == safi:
+                return item.value
+        return None
+
+
+def decode_statistics(raw: bytes, *, strict: bool = True, max_stats: int = MAX_STATS) -> Statistics:
+    """Decode a Statistics Report body, the octets after the per-peer header (RFC 7854 section 4.8).
+
+    A 4-octet Stats Count then that many TLVs (2-octet type, 2-octet length, data). Types 0 to 6, 11
+    to 13 are 32-bit counters; 7, 8 and the others listed in RFC 8671 table 2 and RFC 9972 are 64-bit
+    gauges, per-AFI/SAFI ones (9, 10, 16, 17 and RFC 9972's) carrying a 2-octet AFI and a 1-octet
+    SAFI first (11 octets); RFC 9972 section 3.1 fixes the length at 8 or 11. An unrecognised type
+    is kept with ``kind="unknown"`` (a receiver "MUST ignore" it, not lose it). With ``strict``
+    these raise :class:`BmpError`: a known type of the wrong length, a Stats Count that disagrees
+    with the TLVs or is zero (section 4.8: "at least one statistic MUST be carried"), more than
+    ``max_stats`` TLVs, and, for RFC 9972's types 18 to 43, a repeated global statistic or a repeated
+    (type, AFI, SAFI) (RFC 9972 section 3.1). Without it the defect is kept as an unknown item or
+    ignored. RFC 7854 section 4.8 also says unexpected data in Stat Data is ignored; the octets stay
+    in ``raw``.
+    """
+    if len(raw) < 4:
+        raise BmpError("Statistics Report is shorter than its Stats Count")
+    count = int.from_bytes(raw[:4], "big")
+    if count > max_stats:
+        raise BmpError(f"Statistics Report claims {count} statistics; the limit is {max_stats}")
+    if strict and count == 0:
+        raise BmpError("a Statistics Report carries at least one statistic (RFC 7854 section 4.8)")
+    items: list[Statistic] = []
+    seen: set[tuple[int, int | None, int | None]] = set()
+    at = 4
+    for _ in range(count):
+        if at + 4 > len(raw):
+            raise BmpError("Statistics Report is cut short in a Stat header")
+        stat_type, length = struct.unpack_from(">HH", raw, at)
+        at += 4
+        if at + length > len(raw):
+            raise BmpError(f"Stat type {stat_type} runs past the end of the report")
+        data = bytes(raw[at : at + length])
+        at += length
+        item = _statistic(stat_type, data, strict)
+        if strict and stat_type in _RFC9972_TYPES and item.kind != "unknown":
+            key = (stat_type, item.afi, item.safi)
+            if key in seen:
+                raise BmpError(f"Stat type {stat_type} appears twice for one scope")
+            seen.add(key)
+        items.append(item)
+    if strict and at != len(raw):
+        raise BmpError(f"{len(raw) - at} octets follow the {count} statistics of the report")
+    return Statistics(tuple(items))
+
+
+def _statistic(stat_type: int, data: bytes, strict: bool) -> Statistic:
+    if stat_type in _COUNTER32:
+        kind, size = "counter32", 4
+    elif stat_type in _GAUGE64:
+        kind, size = "gauge64", 8
+    elif stat_type in _AFI_SAFI_GAUGE64:
+        kind, size = "afi-safi-gauge64", 11
+    else:
+        return Statistic(stat_type, "unknown", None, data)
+    if len(data) != size:
+        if strict:
+            raise BmpError(f"Stat type {stat_type} is {len(data)} octets; {kind} needs {size}")
+        return Statistic(stat_type, "unknown", None, data)
+    if kind == "afi-safi-gauge64":
+        afi, safi = struct.unpack(">HB", data[:3])
+        return Statistic(stat_type, kind, int.from_bytes(data[3:], "big"), data, afi, safi)
+    return Statistic(stat_type, kind, int.from_bytes(data, "big"), data)

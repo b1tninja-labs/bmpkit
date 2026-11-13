@@ -33,5 +33,5 @@ Findings of the second pass:
 - Erratum 7703 (verified): the L flag has significance only for Route Monitoring, so `decode_mirrored` does not consult it.
 - Erratum 7133 (held): RFC 7854 section 5 asks for one End-of-RIB marker per peer, but RFC 4724 defines the marker per address family. `RouteMonitoring.end_of_rib` reports the family.
 - RFC 7854 section 4.7 in the IANA registries: Route Mirroring TLV types 0 and 1 and Information codes 0 and 1 are the only assigned values.
-- RFC 9972 (statistics types 18 to 43) and RFC 8671 types 14 to 17 are in the IANA statistics registry and not in the spine; recorded in `ROADMAP.md`.
+- RFC 9972 (Proposed Standard, 2026-05, current, no errata; statistics types 18 to 43, sections 3.1 to 3.3 and 8 read 2026-11-13) and RFC 8671 table 2 (types 14 to 17) are decoded by `messages.decode_statistics`; RFC 9972 section 4 (which statistics apply to Loc-RIB) is not enforced. Types 24 and 25 are in no document read here and are kept as unknown.
 - pathattr (RFC 4271, RFC 7606, RFC 7911, RFC 4760) is a sibling path dependency: `pyproject.toml` puts `../pathattr` on pytest's `pythonpath` and mypy's `mypy_path`, as `bgpfeed` does.
