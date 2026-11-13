@@ -16,6 +16,10 @@ import bmpkit as package
 
 SURFACE = [
     ("header", "decode_common", "RFC 7854"),
+    ("header", "decode_per_peer", "RFC 7854"),
+    ("messages", "decode_initiation", "RFC 7854"),
+    ("messages", "decode_termination", "RFC 7854"),
+    ("messages", "decode_peer_up", "RFC 7854"),
     ("messages", "decode_route_monitoring", "RFC 7854"),
     ("messages", "decode_statistics", "RFC 7854"),
     ("rib", "view_of", "RFC 8671, RFC 9069"),

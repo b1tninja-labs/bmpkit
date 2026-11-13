@@ -5,9 +5,11 @@
      the badges stay commented out until the tag exists.
 -->
 
-**Pre-alpha shell.** The package surface, the obligation matrix and the CI gates exist.
-No protocol behaviour is implemented: every public function raises `NotImplementedError`,
-and the test suite records that rather than hiding it. Read
+**Pre-alpha.** The BMP common header, the per-peer header, Initiation, Termination and Peer Up
+decode (`header`, `messages`) and are tested against hand-built vectors from RFC 7854, RFC 8671,
+RFC 9069 and RFC 9736. BGP PDUs inside messages stay bytes until `pathattr` is wired in. The rest,
+route monitoring, statistics, the collector and the RIB views, is still a stub that raises
+`NotImplementedError`, and the test suite records that rather than hiding it. Read
 [ROADMAP.md](ROADMAP.md) before depending on any of it.
 
 bmpkit -- stop screen scraping your routers

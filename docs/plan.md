@@ -17,10 +17,15 @@ urgency, and better work once Tier 1 exists.
 
 ## Depends on
 
-None. The portfolio plan puts no other project between this one and a first release: every
-obligation in [../ROADMAP.md](../ROADMAP.md) is this repository's own, and nothing outside it
-has to land first. That cuts both ways - a missing dependency is never the reason this project
-has not shipped, and its wave position is the only thing holding it back.
+`pathattr`, for the BGP PDUs that BMP encapsulates. Route Monitoring and Route Mirroring messages carry
+a whole BGP UPDATE and Peer Up carries the OPEN messages of the session; decoding those is pathattr's
+job (`D:\code\pathattr`). Everything else in [../ROADMAP.md](../ROADMAP.md) is this repository's own:
+the BMP framing, the per-peer header, Initiation, Termination, Peer Up framing and the collector
+server decode and run without it, with PDU bodies kept as bytes. Only the row `messages.decode-bgp-pdus`
+and the rows that read UPDATE contents wait for pathattr.
+
+*Hand correction, 2026-11-13:* the generator wrote "None" here. The arrow still has to be added to
+PORTFOLIO.md, or a regeneration will put "None" back.
 
 ## Sequencing rules
 

@@ -61,6 +61,12 @@ rather than merely incomplete.
    An agent that "helpfully" implements a non-goal has expanded the API surface that
    has to be supported forever.
 
+## Dependencies
+
+Standard library only. The `cryptography` package may be added for cryptographic primitives; everything
+else is written here. BGP PDUs inside BMP messages are kept as bytes and decoded by `pathattr` (sibling
+project, `D:\code\pathattr`); do not write a second BGP decoder here.
+
 ## Read before implementing
 
 - RFC 7854 carries 3 verified errata and is updated by RFC 8671, RFC 9069, RFC 9515 and RFC 9736. Read all of them before M1. RFC 9515 only changes registration procedures for several BMP registries; RFC 9736 gives the Peer Up message its own namespace and moves codepoints from RFC 8671 and RFC 9069 into it (rfclib, 2026-11-07). RFC 9515 and RFC 9736 report no verified errata.
